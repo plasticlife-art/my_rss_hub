@@ -53,8 +53,46 @@ async def scrape_movies(base_url: str, location: str, date_str: str) -> List[Mov
             return Array.from(seen.values());
         }""")
 
+        movies = []
+        for item in raw:
+            title = _normalize_space(item["title"])
+            url = item["url"]
+            desc = ""
+            try:
+                await page.goto(url, wait_until="networkidle", timeout=60000)
+                # Prefer specific movie description paragraphs on film pages.
+                await page.wait_for_selector(".b-movie-description__text, .b-movie-description", timeout=8000)
+                # Expand if the description is collapsed.
+                try:
+                    btn = page.locator(".b-movie-description__btn")
+                    if await btn.count():
+                        await btn.first.click()
+                        await page.wait_for_timeout(500)
+                except Exception:
+                    pass
+                for _ in range(3):
+                    desc = await page.eval_on_selector_all(
+                        ".b-movie-description__text",
+                        "els => els.map(e => (e.innerText || '').trim()).filter(Boolean).join('\\n\\n')",
+                    )
+                    if desc:
+                        break
+                    desc = await page.eval_on_selector(
+                        ".b-movie-description",
+                        "el => el.innerText || ''",
+                    )
+                    if desc:
+                        break
+                    await page.wait_for_timeout(1000)
+            except Exception:
+                desc = ""
+
+            movies.append(
+                Movie(title=title, url=url, description=_normalize_space(desc))
+            )
+
         await browser.close()
 
-    movies = [Movie(title=_normalize_space(x["title"]), url=x["url"]) for x in raw]
+    movies = [m for m in movies if m.title and m.url]
     movies.sort(key=lambda m: (m.title.lower(), m.url))
     return movies

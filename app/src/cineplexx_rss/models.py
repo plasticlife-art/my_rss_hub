@@ -5,6 +5,7 @@ from typing import Literal
 class Movie:
     title: str
     url: str
+    description: str = ""
 
 EventType = Literal["add", "remove"]
 

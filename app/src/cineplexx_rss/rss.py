@@ -70,7 +70,10 @@ def build_rss_xml(
         lines.append(f"<link>{escape(m.url)}</link>")
         lines.append(f"<guid isPermaLink=\"true\">{escape(m.url)}</guid>")
         lines.append(f"<pubDate>{escape(format_datetime(now))}</pubDate>")
-        lines.append(f"<description>{escape('Сейчас в репертуаре: ' + m.title)}</description>")
+        item_desc = m.description.strip() if m.description else ""
+        if not item_desc:
+            item_desc = "Сейчас в репертуаре: " + m.title
+        lines.append(f"<description>{escape(item_desc)}</description>")
         lines.append("</item>")
 
     lines.append("</channel>")
