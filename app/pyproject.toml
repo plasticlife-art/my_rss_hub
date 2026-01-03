@@ -1,0 +1,11 @@
+[project]
+name = "cineplexx-rss"
+version = "0.2.0"
+requires-python = ">=3.10"
+dependencies = [
+  "playwright",
+  "python-dotenv",
+]
+
+[project.scripts]
+cineplexx-rss = "cineplexx_rss.main:main"
