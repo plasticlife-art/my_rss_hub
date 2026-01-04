@@ -28,6 +28,7 @@ def resolve_date(cfg) -> str:
 async def run(cfg, logger: logging.Logger, cache) -> dict:
     tz = ZoneInfo(cfg.timezone)
     now = datetime.now(tz)
+    now_utc = datetime.now(timezone.utc)
     date_str = resolve_date(cfg)
 
     state_path: Path = cfg.out_dir / f"state_location_{cfg.location}.json"
@@ -54,7 +55,8 @@ async def run(cfg, logger: logging.Logger, cache) -> dict:
         cfg.schedule_cache_negative_ttl_seconds,
     )
 
-    added, removed = compute_diff(state.snapshot, current)
+    prev_snapshot = state.snapshot
+    added, removed = compute_diff(prev_snapshot, current)
     logger.info(
         "diff added_count=%s removed_count=%s state_snapshot_size_before=%s events_total_in_state_before=%s",
         len(added),
@@ -75,7 +77,7 @@ async def run(cfg, logger: logging.Logger, cache) -> dict:
             max_events_in_state=cfg.max_events_in_state,
         )
 
-    update_snapshot(state, current)
+    update_snapshot(state, current, now_utc.isoformat())
     save_state(state_path, state)
     logger.info(
         "state_snapshot_size_after=%s events_total_in_state_after=%s",
@@ -93,6 +95,7 @@ async def run(cfg, logger: logging.Logger, cache) -> dict:
         events=state.events,
         events_limit=cfg.events_limit,
         current_items=current,
+        snapshot_meta=state.snapshot,
     )
     rss_path.write_text(rss_xml, "utf-8")
     rss_duration = perf_counter() - rss_start

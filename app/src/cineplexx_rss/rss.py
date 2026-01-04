@@ -7,17 +7,33 @@ import hashlib
 
 from .models import Movie, Session
 
-def _format_sessions(sessions: List[Session]) -> str:
+def _cdata(value: str) -> str:
+    if not value:
+        return ""
+    return "<![CDATA[" + value.replace("]]>", "]]]]><![CDATA[>") + "]]>"
+
+
+def _format_sessions_html(sessions: List[Session]) -> str:
     if not sessions:
         return ""
-    lines = ["Sessions:"]
+    lines = ["<p><b>Sessions:</b></p>", "<ul>"]
     for s in sessions:
         parts = [s.date, s.time, s.hall, s.info]
-        line = " — ".join([p for p in parts if p])
+        text = " — ".join([escape(p) for p in parts if p])
         if s.purchase_url:
-            line = f"{line} — {s.purchase_url}"
-        lines.append(line)
+            text = f'{text} — <a href="{escape(s.purchase_url)}">buy</a>'
+        lines.append(f"<li>{text}</li>")
+    lines.append("</ul>")
     return "\n".join(lines)
+
+
+def _short_description(movie: Movie) -> str:
+    desc = movie.description.strip() if movie.description else ""
+    if desc:
+        return desc
+    if movie.sessions:
+        return f"{len(movie.sessions)} sessions upcoming"
+    return "Сейчас в репертуаре: " + movie.title
 
 def _event_guid(event: dict) -> str:
     # Stable, unique per event occurrence
@@ -35,13 +51,14 @@ def build_rss_xml(
     events: List[dict],
     events_limit: int,
     current_items: List[Movie],
+    snapshot_meta: Dict[str, Dict[str, str]],
 ) -> str:
     logger = logging.getLogger(__name__)
     # RSS 2.0
     pub_date = format_datetime(now)
     lines = []
     lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-    lines.append('<rss version="2.0">')
+    lines.append('<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">')
     lines.append("<channel>")
     lines.append(f"<title>{escape(title)}</title>")
     lines.append(f"<link>{escape(link)}</link>")
@@ -72,25 +89,37 @@ def build_rss_xml(
         lines.append(f"<link>{escape(item_link)}</link>")
         lines.append(f"<guid isPermaLink=\"false\">{escape(_event_guid(ev))}</guid>")
         lines.append(f"<pubDate>{escape(format_datetime(ev_dt))}</pubDate>")
-        lines.append(f"<description>{escape(item_desc)}</description>")
+        lines.append(f"<description>{_cdata(item_desc)}</description>")
         lines.append("</item>")
 
     # 2) Current list (stable GUID = film URL)
     # Use pubDate=now so ordering tends to keep events on top anyway in many readers,
     # but GUID stability prevents re-notifying.
     for m in current_items:
+        meta = snapshot_meta.get(m.url) or {}
+        first_seen_raw = meta.get("first_seen")
+        try:
+            first_seen_dt = datetime.fromisoformat(first_seen_raw) if first_seen_raw else now
+        except Exception:
+            first_seen_dt = now
+        if first_seen_dt.tzinfo is None:
+            first_seen_dt = first_seen_dt.replace(tzinfo=timezone.utc)
+
         lines.append("<item>")
         lines.append(f"<title>{escape(m.title)}</title>")
         lines.append(f"<link>{escape(m.url)}</link>")
         lines.append(f"<guid isPermaLink=\"true\">{escape(m.url)}</guid>")
-        lines.append(f"<pubDate>{escape(format_datetime(now))}</pubDate>")
-        item_desc = m.description.strip() if m.description else ""
-        if not item_desc:
-            item_desc = "Сейчас в репертуаре: " + m.title
-        sessions_block = _format_sessions(m.sessions)
-        if sessions_block:
-            item_desc = item_desc + "\n\n" + sessions_block
-        lines.append(f"<description>{escape(item_desc)}</description>")
+        lines.append(f"<pubDate>{escape(format_datetime(first_seen_dt))}</pubDate>")
+        short_desc = _short_description(m)
+        lines.append(f"<description>{_cdata(short_desc)}</description>")
+        content_parts = []
+        if m.description:
+            content_parts.append(f"<p>{escape(m.description)}</p>")
+        sessions_html = _format_sessions_html(m.sessions)
+        if sessions_html:
+            content_parts.append(sessions_html)
+        if content_parts:
+            lines.append(f"<content:encoded>{_cdata('\\n'.join(content_parts))}</content:encoded>")
         lines.append("</item>")
 
     lines.append("</channel>")
@@ -122,11 +151,6 @@ def build_telegram_rss_xml(
     lines.append(f"<link>{escape(link)}</link>")
     lines.append(f"<description>{escape(description)}</description>")
     lines.append(f"<lastBuildDate>{escape(pub_date)}</lastBuildDate>")
-
-    def _cdata(value: str) -> str:
-        if not value:
-            return ""
-        return "<![CDATA[" + value.replace("]]>", "]]]]><![CDATA[>") + "]]>"
 
     for item in items:
         item_title = item.get("title") or "Post"
