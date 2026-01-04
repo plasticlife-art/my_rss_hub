@@ -1,11 +1,22 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
+
+@dataclass(frozen=True)
+class Session:
+    date: str
+    time: str
+    hall: str
+    info: str
+    session_id: str
+    cinema_name: str
+    purchase_url: str = ""
 
 @dataclass(frozen=True)
 class Movie:
     title: str
     url: str
     description: str = ""
+    sessions: list[Session] = field(default_factory=list)
 
 EventType = Literal["add", "remove"]
 

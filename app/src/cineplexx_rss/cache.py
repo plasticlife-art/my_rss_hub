@@ -73,6 +73,12 @@ def cache_key_for_url(url: str) -> str:
     return f"cineplexx:film:{digest}"
 
 
+def cache_key_for_sessions(url: str, location: str, date: str) -> str:
+    raw = f"{url}|{location}|{date}"
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()
+    return f"cineplexx:sessions:{digest}"
+
+
 def build_cache(config, logger: logging.Logger) -> Cache:
     if not getattr(config, "cache_enabled", False):
         logger.info("cache_disabled")

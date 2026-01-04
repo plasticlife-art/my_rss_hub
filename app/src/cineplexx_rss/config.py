@@ -25,6 +25,13 @@ class Config:
     film_cache_ttl_seconds: int
     cache_negative_ttl_seconds: int
     max_film_pages_concurrency: int
+    schedule_enabled: bool
+    schedule_max_days_ahead: int
+    schedule_max_sessions_per_movie: int
+    schedule_max_dates_per_movie: int
+    schedule_concurrency: int
+    schedule_cache_ttl_seconds: int
+    schedule_cache_negative_ttl_seconds: int
 
     feed_title: str
     feed_link: str
@@ -94,6 +101,50 @@ def load_config() -> Config:
         )
         max_film_pages_concurrency = 4
 
+    schedule_enabled = _bool("SCHEDULE_ENABLED", True)
+    schedule_max_days_ahead = _int("SCHEDULE_MAX_DAYS_AHEAD", 14)
+    if schedule_max_days_ahead <= 0:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_MAX_DAYS_AHEAD=%s, using default=14",
+            os.getenv("SCHEDULE_MAX_DAYS_AHEAD", ""),
+        )
+        schedule_max_days_ahead = 14
+    schedule_max_sessions_per_movie = _int("SCHEDULE_MAX_SESSIONS_PER_MOVIE", 50)
+    if schedule_max_sessions_per_movie <= 0:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_MAX_SESSIONS_PER_MOVIE=%s, using default=50",
+            os.getenv("SCHEDULE_MAX_SESSIONS_PER_MOVIE", ""),
+        )
+        schedule_max_sessions_per_movie = 50
+    schedule_max_dates_per_movie = _int("SCHEDULE_MAX_DATES_PER_MOVIE", 10)
+    if schedule_max_dates_per_movie <= 0:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_MAX_DATES_PER_MOVIE=%s, using default=10",
+            os.getenv("SCHEDULE_MAX_DATES_PER_MOVIE", ""),
+        )
+        schedule_max_dates_per_movie = 10
+    schedule_concurrency = _int("SCHEDULE_CONCURRENCY", 4)
+    if schedule_concurrency < 1:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_CONCURRENCY=%s, using default=4",
+            os.getenv("SCHEDULE_CONCURRENCY", ""),
+        )
+        schedule_concurrency = 4
+    schedule_cache_ttl_seconds = _int("SCHEDULE_CACHE_TTL_SECONDS", 21600)
+    if schedule_cache_ttl_seconds <= 0:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_CACHE_TTL_SECONDS=%s, using default=21600",
+            os.getenv("SCHEDULE_CACHE_TTL_SECONDS", ""),
+        )
+        schedule_cache_ttl_seconds = 21600
+    schedule_cache_negative_ttl_seconds = _int("SCHEDULE_CACHE_NEGATIVE_TTL_SECONDS", 3600)
+    if schedule_cache_negative_ttl_seconds <= 0:
+        logging.getLogger(__name__).warning(
+            "invalid SCHEDULE_CACHE_NEGATIVE_TTL_SECONDS=%s, using default=3600",
+            os.getenv("SCHEDULE_CACHE_NEGATIVE_TTL_SECONDS", ""),
+        )
+        schedule_cache_negative_ttl_seconds = 3600
+
     return Config(
         base_url=os.getenv("BASE_URL", "https://cineplexx.me").rstrip("/"),
         location=os.getenv("LOCATION", "0"),
@@ -112,6 +163,13 @@ def load_config() -> Config:
         film_cache_ttl_seconds=film_cache_ttl_seconds,
         cache_negative_ttl_seconds=cache_negative_ttl_seconds,
         max_film_pages_concurrency=max_film_pages_concurrency,
+        schedule_enabled=schedule_enabled,
+        schedule_max_days_ahead=schedule_max_days_ahead,
+        schedule_max_sessions_per_movie=schedule_max_sessions_per_movie,
+        schedule_max_dates_per_movie=schedule_max_dates_per_movie,
+        schedule_concurrency=schedule_concurrency,
+        schedule_cache_ttl_seconds=schedule_cache_ttl_seconds,
+        schedule_cache_negative_ttl_seconds=schedule_cache_negative_ttl_seconds,
 
         feed_title=os.getenv("FEED_TITLE", "Cineplexx — репертуар"),
         feed_link=os.getenv("FEED_LINK", "https://cineplexx.me"),

@@ -45,6 +45,13 @@ async def run(cfg, logger: logging.Logger, cache) -> dict:
         cfg.film_cache_ttl_seconds,
         cfg.cache_negative_ttl_seconds,
         cfg.max_film_pages_concurrency,
+        cfg.schedule_enabled,
+        cfg.schedule_max_days_ahead,
+        cfg.schedule_max_sessions_per_movie,
+        cfg.schedule_max_dates_per_movie,
+        cfg.schedule_concurrency,
+        cfg.schedule_cache_ttl_seconds,
+        cfg.schedule_cache_negative_ttl_seconds,
     )
 
     added, removed = compute_diff(state.snapshot, current)
@@ -192,6 +199,14 @@ def main() -> None:
             cfg.cache_negative_ttl_seconds,
             cfg.max_film_pages_concurrency,
             cfg.redis_url or "",
+        )
+        logger.info(
+            "schedule_config enabled=%s max_days_ahead=%s max_sessions_per_movie=%s max_dates_per_movie=%s concurrency=%s",
+            cfg.schedule_enabled,
+            cfg.schedule_max_days_ahead,
+            cfg.schedule_max_sessions_per_movie,
+            cfg.schedule_max_dates_per_movie,
+            cfg.schedule_concurrency,
         )
         cache = build_cache(cfg, logger)
         logger.info(

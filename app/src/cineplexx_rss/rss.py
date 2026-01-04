@@ -5,7 +5,19 @@ from typing import List, Dict
 from xml.sax.saxutils import escape
 import hashlib
 
-from .models import Movie
+from .models import Movie, Session
+
+def _format_sessions(sessions: List[Session]) -> str:
+    if not sessions:
+        return ""
+    lines = ["Sessions:"]
+    for s in sessions:
+        parts = [s.date, s.time, s.hall, s.info]
+        line = " — ".join([p for p in parts if p])
+        if s.purchase_url:
+            line = f"{line} — {s.purchase_url}"
+        lines.append(line)
+    return "\n".join(lines)
 
 def _event_guid(event: dict) -> str:
     # Stable, unique per event occurrence
@@ -75,6 +87,9 @@ def build_rss_xml(
         item_desc = m.description.strip() if m.description else ""
         if not item_desc:
             item_desc = "Сейчас в репертуаре: " + m.title
+        sessions_block = _format_sessions(m.sessions)
+        if sessions_block:
+            item_desc = item_desc + "\n\n" + sessions_block
         lines.append(f"<description>{escape(item_desc)}</description>")
         lines.append("</item>")
 
