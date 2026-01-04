@@ -26,6 +26,7 @@ docker compose --profile dev up -d --build
 Then open:
 - `http://localhost:8080/cineplexx_rss.xml`
 - `http://localhost:8080/<channel>.xml`
+- `http://localhost:8080/index.html`
 
 ## Production (Docker, prod profile)
 ```bash

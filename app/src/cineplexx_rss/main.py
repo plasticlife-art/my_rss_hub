@@ -14,6 +14,7 @@ from .rss import build_rss_xml, build_telegram_rss_xml
 from .telegram import scrape_telegram_channel
 from .logging_utils import setup_logging, new_run_id, set_run_id
 from .cache import build_cache
+from .index import build_index_html, build_index_xml, FeedLink, atomic_write_text
 
 
 def resolve_date(cfg) -> str:
@@ -161,6 +162,38 @@ async def run(cfg, logger: logging.Logger, cache) -> dict:
                 len(items),
                 tg_path,
             )
+
+    feeds: list[FeedLink] = [
+        FeedLink(
+            title=f"Cineplexx — {cfg.location}",
+            href=cfg.rss_filename,
+            kind="cineplexx",
+            subtitle=cfg.feed_description,
+        )
+    ]
+    for channel in cfg.telegram_channels:
+        feeds.append(
+            FeedLink(
+                title=f"Telegram — t.me/{channel}",
+                href=f"{channel}.xml",
+                kind="telegram",
+                subtitle=f"t.me/{channel}",
+            )
+        )
+
+    last_updated = datetime.now(timezone.utc)
+    index_html = build_index_html(
+        feeds=feeds,
+        site_title="MyRssHub",
+        last_updated=last_updated,
+    )
+    index_xml = build_index_xml(
+        feeds=feeds,
+        site_title="MyRssHub",
+        last_updated=last_updated,
+    )
+    atomic_write_text(cfg.out_dir / "index.html", index_html)
+    atomic_write_text(cfg.out_dir / "index.xml", index_xml)
 
     return {
         "cineplexx": {
