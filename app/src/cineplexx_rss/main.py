@@ -60,6 +60,16 @@ def _load_job_finished_at(path: Path, job_key: str) -> datetime | None:
     return parsed
 
 
+def _load_status(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text("utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _build_index(cfg, cineplexx_updated: datetime | None, telegram_updated: datetime | None) -> None:
     location_label = "Podgorica" if cfg.location == "0" else cfg.location
     feeds: list[FeedLink] = [
@@ -331,12 +341,33 @@ def main() -> None:
             cineplexx_last: datetime | None = None
             telegram_last: datetime | None = None
 
+            existing_status = _load_status(status_path)
             status_payload = {
                 "run_id": run_id,
                 "updated_at": now.isoformat(),
-                "cineplexx_job": {"enabled": cfg.cineplexx_enabled, "status": "skipped"},
-                "telegram_job": {"enabled": cfg.telegram_enabled, "status": "skipped"},
+                "cineplexx_job": existing_status.get(
+                    "cineplexx_job",
+                    {"enabled": cfg.cineplexx_enabled, "status": "skipped"},
+                ),
+                "telegram_job": existing_status.get(
+                    "telegram_job",
+                    {"enabled": cfg.telegram_enabled, "status": "skipped"},
+                ),
             }
+            if isinstance(status_payload["cineplexx_job"], dict):
+                status_payload["cineplexx_job"]["enabled"] = cfg.cineplexx_enabled
+            else:
+                status_payload["cineplexx_job"] = {
+                    "enabled": cfg.cineplexx_enabled,
+                    "status": "skipped",
+                }
+            if isinstance(status_payload["telegram_job"], dict):
+                status_payload["telegram_job"]["enabled"] = cfg.telegram_enabled
+            else:
+                status_payload["telegram_job"] = {
+                    "enabled": cfg.telegram_enabled,
+                    "status": "skipped",
+                }
 
             if cineplexx_due:
                 job_started = datetime.now(tz)
